@@ -80,6 +80,7 @@ class _TripsScreenState extends State<TripsScreen> {
   final _nameController = TextEditingController();
   final _destinationController = TextEditingController();
   DateTime? _startDate;
+  String _searchQuery = '';
 
   void _addTrip() {
     if (_formKey.currentState!.validate() && _startDate != null) {
@@ -106,8 +107,20 @@ class _TripsScreenState extends State<TripsScreen> {
     );
   }
 
+  List<Map<String, dynamic>> _getFilteredTrips() {
+    return _trips.where((trip) {
+      final name = trip['name'].toString().toLowerCase();
+      final destination = trip['destination'].toString().toLowerCase();
+      final query = _searchQuery.toLowerCase();
+      return name.contains(query) || destination.contains(query);
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final filteredTrips = _getFilteredTrips();
+    filteredTrips.sort((a, b) => (a['startDate'] as DateTime).compareTo(b['startDate'] as DateTime));
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -163,15 +176,28 @@ class _TripsScreenState extends State<TripsScreen> {
             ),
           ),
           const SizedBox(height: 20),
+          TextField(
+            decoration: const InputDecoration(
+              labelText: 'Search Trips',
+              prefixIcon: Icon(Icons.search),
+            ),
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+          ),
+          const SizedBox(height: 20),
           Expanded(
             child: ListView.builder(
-              itemCount: _trips.length,
+              itemCount: filteredTrips.length,
               itemBuilder: (context, index) {
-                final trip = _trips[index];
+                final trip = filteredTrips[index];
                 return ListTile(
                   title: Text(trip['name']),
                   subtitle: Text('${trip['destination']} - ${trip['startDate'].toString().split(' ')[0]}'),
-                  onTap: () => _navigateToTripEntries(index),
+                  trailing: Text('${trip['entries'].length} entries'),
+                  onTap: () => _navigateToTripEntries(_trips.indexOf(trip)),
                 );
               },
             ),

@@ -80,4 +80,30 @@ void main() {
     // Verify that the entry is added to the list
     expect(find.text('First day in Paris'), findsOneWidget);
   });
+
+  testWidgets('Search trips by name or destination', (WidgetTester tester) async {
+    // Build our app and trigger a frame.
+    await tester.pumpWidget(const RoamBookApp());
+
+    // Add a trip
+    await tester.enterText(find.byType(TextFormField).first, 'Summer Vacation');
+    await tester.pump();
+    await tester.enterText(find.byType(TextFormField).last, 'Paris');
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.calendar_today));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1'));
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add Trip'));
+    await tester.pumpAndSettle();
+
+    // Enter search query
+    await tester.enterText(find.byType(TextField).first, 'Summer');
+    await tester.pumpAndSettle();
+
+    // Verify that the trip is filtered
+    expect(find.text('Summer Vacation'), findsOneWidget);
+    expect(find.textContaining('Paris -'), findsOneWidget);
+  });
 }
