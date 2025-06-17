@@ -67,15 +67,105 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 }
 
-class TripsScreen extends StatelessWidget {
+class TripsScreen extends StatefulWidget {
   const TripsScreen({super.key});
 
   @override
+  State<TripsScreen> createState() => _TripsScreenState();
+}
+
+class _TripsScreenState extends State<TripsScreen> {
+  final List<Map<String, dynamic>> _trips = [];
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _destinationController = TextEditingController();
+  DateTime? _startDate;
+
+  void _addTrip() {
+    if (_formKey.currentState!.validate() && _startDate != null) {
+      setState(() {
+        _trips.add({
+          'name': _nameController.text,
+          'destination': _destinationController.text,
+          'startDate': _startDate,
+        });
+        _nameController.clear();
+        _destinationController.clear();
+        _startDate = null;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Trips will be listed here',
-        style: TextStyle(fontSize: 20),
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(labelText: 'Trip Name'),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a trip name';
+                    }
+                    return null;
+                  },
+                ),
+                TextFormField(
+                  controller: _destinationController,
+                  decoration: const InputDecoration(labelText: 'Destination'),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a destination';
+                    }
+                    return null;
+                  },
+                ),
+                ListTile(
+                  title: Text(_startDate == null
+                      ? 'Select Start Date'
+                      : 'Start Date: ${_startDate!.toString().split(' ')[0]}'),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _startDate = date;
+                      });
+                    }
+                  },
+                ),
+                ElevatedButton(
+                  onPressed: _addTrip,
+                  child: const Text('Add Trip'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _trips.length,
+              itemBuilder: (context, index) {
+                final trip = _trips[index];
+                return ListTile(
+                  title: Text(trip['name']),
+                  subtitle: Text('${trip['destination']} - ${trip['startDate'].toString().split(' ')[0]}'),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
