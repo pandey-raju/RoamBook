@@ -88,12 +88,22 @@ class _TripsScreenState extends State<TripsScreen> {
           'name': _nameController.text,
           'destination': _destinationController.text,
           'startDate': _startDate,
+          'entries': <Map<String, dynamic>>[],
         });
         _nameController.clear();
         _destinationController.clear();
         _startDate = null;
       });
     }
+  }
+
+  void _navigateToTripEntries(int tripIndex) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TripEntriesScreen(trip: _trips[tripIndex]),
+      ),
+    );
   }
 
   @override
@@ -161,11 +171,77 @@ class _TripsScreenState extends State<TripsScreen> {
                 return ListTile(
                   title: Text(trip['name']),
                   subtitle: Text('${trip['destination']} - ${trip['startDate'].toString().split(' ')[0]}'),
+                  onTap: () => _navigateToTripEntries(index),
                 );
               },
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class TripEntriesScreen extends StatefulWidget {
+  final Map<String, dynamic> trip;
+
+  const TripEntriesScreen({super.key, required this.trip});
+
+  @override
+  State<TripEntriesScreen> createState() => _TripEntriesScreenState();
+}
+
+class _TripEntriesScreenState extends State<TripEntriesScreen> {
+  final _entryController = TextEditingController();
+
+  void _addEntry() {
+    if (_entryController.text.isNotEmpty) {
+      setState(() {
+        widget.trip['entries'].add({
+          'text': _entryController.text,
+          'timestamp': DateTime.now(),
+        });
+        _entryController.clear();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.trip['name']),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _entryController,
+              decoration: const InputDecoration(
+                labelText: 'New Entry',
+                suffixIcon: IconButton(
+                  icon: Icon(Icons.add),
+                  onPressed: null,
+                ),
+              ),
+              onSubmitted: (_) => _addEntry(),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: ListView.builder(
+                itemCount: widget.trip['entries'].length,
+                itemBuilder: (context, index) {
+                  final entry = widget.trip['entries'][index];
+                  return ListTile(
+                    title: Text(entry['text']),
+                    subtitle: Text(entry['timestamp'].toString()),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

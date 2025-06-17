@@ -49,4 +49,35 @@ void main() {
     expect(find.text('Summer Vacation'), findsOneWidget);
     expect(find.textContaining('Paris -'), findsOneWidget);
   });
+
+  testWidgets('Add a text entry to a trip', (WidgetTester tester) async {
+    // Build our app and trigger a frame.
+    await tester.pumpWidget(const RoamBookApp());
+
+    // Add a trip first
+    await tester.enterText(find.byType(TextFormField).first, 'Summer Vacation');
+    await tester.pump();
+    await tester.enterText(find.byType(TextFormField).last, 'Paris');
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.calendar_today));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1'));
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add Trip'));
+    await tester.pumpAndSettle();
+
+    // Tap on the trip to navigate to entries screen
+    await tester.tap(find.text('Summer Vacation'));
+    await tester.pumpAndSettle();
+
+    // Enter a new text entry
+    await tester.enterText(find.byType(TextField), 'First day in Paris');
+    await tester.pump();
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    // Verify that the entry is added to the list
+    expect(find.text('First day in Paris'), findsOneWidget);
+  });
 }
