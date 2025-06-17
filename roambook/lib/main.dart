@@ -219,6 +219,7 @@ class TripEntriesScreen extends StatefulWidget {
 
 class _TripEntriesScreenState extends State<TripEntriesScreen> {
   final _entryController = TextEditingController();
+  String _searchQuery = '';
 
   void _addEntry() {
     if (_entryController.text.isNotEmpty) {
@@ -232,8 +233,25 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
     }
   }
 
+  void _deleteEntry(int index) {
+    setState(() {
+      widget.trip['entries'].removeAt(index);
+    });
+  }
+
+  List<Map<String, dynamic>> _getFilteredEntries() {
+    return widget.trip['entries'].where((entry) {
+      final text = entry['text'].toString().toLowerCase();
+      final query = _searchQuery.toLowerCase();
+      return text.contains(query);
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final filteredEntries = _getFilteredEntries();
+    filteredEntries.sort((a, b) => (a['timestamp'] as DateTime).compareTo(b['timestamp'] as DateTime));
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.trip['name']),
@@ -254,14 +272,30 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
               onSubmitted: (_) => _addEntry(),
             ),
             const SizedBox(height: 20),
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Search Entries',
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+            ),
+            const SizedBox(height: 20),
             Expanded(
               child: ListView.builder(
-                itemCount: widget.trip['entries'].length,
+                itemCount: filteredEntries.length,
                 itemBuilder: (context, index) {
-                  final entry = widget.trip['entries'][index];
+                  final entry = filteredEntries[index];
                   return ListTile(
                     title: Text(entry['text']),
                     subtitle: Text(entry['timestamp'].toString()),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete),
+                      onPressed: () => _deleteEntry(widget.trip['entries'].indexOf(entry)),
+                    ),
                   );
                 },
               ),
