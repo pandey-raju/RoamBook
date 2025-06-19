@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../models/trip.dart';
 import '../models/entry.dart';
 import 'package:provider/provider.dart';
@@ -18,6 +20,9 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
   final quill.QuillController _quillController = quill.QuillController.basic();
   String _searchQuery = '';
   String? _editingEntryId;
+  final _locationController = TextEditingController();
+  final List<String> _selectedImages = [];
+  final _imagePicker = ImagePicker();
 
   // Add this getter for testing
   quill.QuillController get quillController => _quillController;
@@ -25,7 +30,23 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
   @override
   void dispose() {
     _quillController.dispose();
+    _locationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() {
+        _selectedImages.add(image.path);
+      });
+    }
+  }
+
+  void _removeImage(String imagePath) {
+    setState(() {
+      _selectedImages.remove(imagePath);
+    });
   }
 
   void _addEntry() {
@@ -41,12 +62,16 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
           title: _quillController.document.toPlainText().split('\n').first,
           content: _quillController.document.toPlainText(),
           date: DateTime.now(),
+          location: _locationController.text.isNotEmpty ? _locationController.text : null,
+          images: _selectedImages,
           document: _quillController.document,
           timestamp: DateTime.now(),
         );
         tripProvider.updateEntry(updatedEntry);
         setState(() {
           _editingEntryId = null;
+          _locationController.clear();
+          _selectedImages.clear();
         });
       } else {
         // Add new entry
@@ -55,10 +80,14 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
           title: _quillController.document.toPlainText().split('\n').first,
           content: _quillController.document.toPlainText(),
           date: DateTime.now(),
+          location: _locationController.text.isNotEmpty ? _locationController.text : null,
+          images: _selectedImages,
           document: _quillController.document,
           timestamp: DateTime.now(),
         );
         tripProvider.addEntry(newEntry);
+        _locationController.clear();
+        _selectedImages.clear();
       }
       _quillController.clear();
     }
@@ -76,6 +105,9 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
     setState(() {
       _editingEntryId = entryId;
       _quillController.document = newDocument;
+      _locationController.text = entry.location ?? '';
+      _selectedImages.clear();
+      _selectedImages.addAll(entry.images);
       _quillController.updateSelection(
         const TextSelection.collapsed(offset: 0),
         quill.ChangeSource.local
@@ -90,6 +122,8 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
       if (_editingEntryId == entryId) {
         _editingEntryId = null;
         _quillController.clear();
+        _locationController.clear();
+        _selectedImages.clear();
       }
     });
   }
@@ -98,6 +132,8 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
     setState(() {
       _editingEntryId = null;
       _quillController.clear();
+      _locationController.clear();
+      _selectedImages.clear();
     });
   }
 
@@ -136,6 +172,61 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
+                TextField(
+                  controller: _locationController,
+                  decoration: const InputDecoration(
+                    labelText: 'Location',
+                    prefixIcon: Icon(Icons.location_on),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _pickImage,
+                        icon: const Icon(Icons.add_photo_alternate),
+                        label: const Text('Add Photos'),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_selectedImages.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _selectedImages.length,
+                      itemBuilder: (context, index) {
+                        final imagePath = _selectedImages[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: Stack(
+                            children: [
+                              Image.file(
+                                File(imagePath),
+                                height: 100,
+                                width: 100,
+                                fit: BoxFit.cover,
+                              ),
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                child: IconButton(
+                                  icon: const Icon(Icons.close, color: Colors.white),
+                                  onPressed: () => _removeImage(imagePath),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
                 quill.QuillSimpleToolbar(
                   controller: _quillController,
                   config: const quill.QuillSimpleToolbarConfig(),
@@ -205,32 +296,56 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
                       final entry = filteredEntries[index];
                       return Card(
                         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        child: ListTile(
-                          title: Text(entry.title),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (entry.location?.isNotEmpty ?? false)
-                                Text(entry.location!),
-                              Text(
-                                entry.timestamp.toString().split('.')[0],
-                                style: Theme.of(context).textTheme.bodySmall,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ListTile(
+                              title: Text(entry.title),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (entry.location?.isNotEmpty ?? false)
+                                    Text(entry.location!),
+                                  Text(
+                                    entry.timestamp.toString().split('.')[0],
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit),
-                                onPressed: () => _editEntry(entry.id),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit),
+                                    onPressed: () => _editEntry(entry.id),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete),
+                                    onPressed: () => _deleteEntry(entry.id),
+                                  ),
+                                ],
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.delete),
-                                onPressed: () => _deleteEntry(entry.id),
+                            ),
+                            if (entry.images.isNotEmpty)
+                              SizedBox(
+                                height: 100,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: entry.images.length,
+                                  itemBuilder: (context, imageIndex) {
+                                    return Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Image.file(
+                                        File(entry.images[imageIndex]),
+                                        height: 100,
+                                        width: 100,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
-                            ],
-                          ),
+                          ],
                         ),
                       );
                     },
