@@ -23,6 +23,7 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
   final _locationController = TextEditingController();
   final List<String> _selectedImages = [];
   final _imagePicker = ImagePicker();
+  bool _showAddForm = false;
 
   // Add this getter for testing
   quill.QuillController get quillController => _quillController;
@@ -72,6 +73,7 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
           _editingEntryId = null;
           _locationController.clear();
           _selectedImages.clear();
+          _showAddForm = false;
         });
       } else {
         // Add new entry
@@ -88,6 +90,9 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
         tripProvider.addEntry(newEntry);
         _locationController.clear();
         _selectedImages.clear();
+        setState(() {
+          _showAddForm = false;
+        });
       }
       _quillController.clear();
     }
@@ -108,6 +113,7 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
       _locationController.text = entry.location ?? '';
       _selectedImages.clear();
       _selectedImages.addAll(entry.images);
+      _showAddForm = true;
       _quillController.updateSelection(
         const TextSelection.collapsed(offset: 0),
         quill.ChangeSource.local
@@ -124,6 +130,7 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
         _quillController.clear();
         _locationController.clear();
         _selectedImages.clear();
+        _showAddForm = false;
       }
     });
   }
@@ -134,6 +141,7 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
       _quillController.clear();
       _locationController.clear();
       _selectedImages.clear();
+      _showAddForm = false;
     });
   }
 
@@ -154,203 +162,445 @@ class _TripEntriesScreenState extends State<TripEntriesScreen> {
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp)); // Sort by oldest first
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.trip.name),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (widget.trip.destination.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Text(
-                      widget.trip.destination,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                TextField(
-                  controller: _locationController,
-                  decoration: const InputDecoration(
-                    labelText: 'Location',
-                    prefixIcon: Icon(Icons.location_on),
-                    border: OutlineInputBorder(),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 140.0,
+            floating: false,
+            pinned: true,
+            flexibleSpace: FlexibleSpaceBar(
+              title: Text(
+                widget.trip.name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Colors.teal, Colors.blue],
                   ),
                 ),
-                const SizedBox(height: 16),
-                Row(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _pickImage,
-                        icon: const Icon(Icons.add_photo_alternate),
-                        label: const Text('Add Photos'),
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.location_on, color: Colors.white, size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            widget.trip.destination,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${allEntries.length} entries',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                if (_selectedImages.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 100,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _selectedImages.length,
-                      itemBuilder: (context, index) {
-                        final imagePath = _selectedImages[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: Stack(
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.search, color: Colors.white),
+                onPressed: () {
+                  // Show search
+                },
+              ),
+            ],
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Search Bar
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Search entries...',
+                        prefixIcon: const Icon(Icons.search),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Add Entry Section
+                  if (_showAddForm) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.1),
+                            spreadRadius: 1,
+                            blurRadius: 5,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _editingEntryId != null ? 'Edit Entry' : 'Add New Entry',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: _locationController,
+                            decoration: const InputDecoration(
+                              labelText: 'Location',
+                              prefixIcon: Icon(Icons.location_on),
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
                             children: [
-                              Image.file(
-                                File(imagePath),
-                                height: 100,
-                                width: 100,
-                                fit: BoxFit.cover,
-                              ),
-                              Positioned(
-                                right: 0,
-                                top: 0,
-                                child: IconButton(
-                                  icon: const Icon(Icons.close, color: Colors.white),
-                                  onPressed: () => _removeImage(imagePath),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _pickImage,
+                                  icon: const Icon(Icons.add_photo_alternate),
+                                  label: const Text('Add Photos'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.teal,
+                                    foregroundColor: Colors.white,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        );
-                      },
+                          if (_selectedImages.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              height: 100,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _selectedImages.length,
+                                itemBuilder: (context, index) {
+                                  final imagePath = _selectedImages[index];
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8.0),
+                                    child: Stack(
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.file(
+                                            File(imagePath),
+                                            height: 100,
+                                            width: 100,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                        Positioned(
+                                          right: 4,
+                                          top: 4,
+                                          child: Container(
+                                            decoration: const BoxDecoration(
+                                              color: Colors.red,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: IconButton(
+                                              icon: const Icon(Icons.close, color: Colors.white, size: 16),
+                                              onPressed: () => _removeImage(imagePath),
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(
+                                                minWidth: 24,
+                                                minHeight: 24,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+                          quill.QuillSimpleToolbar(
+                            controller: _quillController,
+                            config: const quill.QuillSimpleToolbarConfig(),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 120,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: quill.QuillEditor.basic(
+                              controller: _quillController,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: _addEntry,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.teal,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  child: Text(_editingEntryId != null ? 'Update Entry' : 'Add Entry'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: _cancelEditing,
+                                  child: const Text('Cancel'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(height: 20),
+                  ],
+                  
+                  // Entries Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Entries (${filteredEntries.length})',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (!_showAddForm)
+                        FloatingActionButton(
+                          onPressed: () {
+                            setState(() {
+                              _showAddForm = true;
+                            });
+                          },
+                          backgroundColor: Colors.teal,
+                          child: const Icon(Icons.add, color: Colors.white),
+                        ),
+                    ],
                   ),
+                  const SizedBox(height: 16),
                 ],
-                const SizedBox(height: 16),
-                quill.QuillSimpleToolbar(
-                  controller: _quillController,
-                  config: const quill.QuillSimpleToolbarConfig(),
+              ),
+            ),
+          ),
+          
+          // Entries List
+          if (filteredEntries.isEmpty)
+            const SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.note_add,
+                      size: 64,
+                      color: Colors.grey,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'No entries yet',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Start documenting your journey!',
+                      style: TextStyle(
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final entry = filteredEntries[index];
+                    return _buildEntryCard(entry);
+                  },
+                  childCount: filteredEntries.length,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEntryCard(Entry entry) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            entry.title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (entry.location?.isNotEmpty ?? false) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.location_on, size: 14, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Text(
+                                  entry.location!,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _editEntry(entry.id);
+                        } else if (value == 'delete') {
+                          _deleteEntry(entry.id);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 16),
+                              SizedBox(width: 8),
+                              Text('Edit'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 16),
+                              SizedBox(width: 8),
+                              Text('Delete'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
-                Container(
-                  height: 120,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: quill.QuillEditor.basic(
-                    controller: _quillController,
-                  ),
+                Text(
+                  entry.content,
+                  style: const TextStyle(fontSize: 14),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 8),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    ElevatedButton(
-                      onPressed: _addEntry,
-                      child: Text(_editingEntryId != null ? 'Update Entry' : 'Add Entry'),
-                    ),
-                    if (_editingEntryId != null) ...[
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: _cancelEditing,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey,
-                        ),
-                        child: const Text('Cancel'),
+                    const Icon(Icons.access_time, size: 14, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(
+                      entry.timestamp.toString().split('.')[0],
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: TextField(
-              decoration: const InputDecoration(
-                labelText: 'Search Entries',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
-            ),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: filteredEntries.isEmpty
-                ? Center(
-                    child: Text(
-                      _searchQuery.isEmpty 
-                          ? 'No entries yet' 
-                          : 'No entries found for "$_searchQuery"',
+          if (entry.images.isNotEmpty)
+            Container(
+              height: 120,
+              padding: const EdgeInsets.only(bottom: 16),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: entry.images.length,
+                itemBuilder: (context, imageIndex) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        File(entry.images[imageIndex]),
+                        height: 120,
+                        width: 120,
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: filteredEntries.length,
-                    itemBuilder: (context, index) {
-                      final entry = filteredEntries[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ListTile(
-                              title: Text(entry.title),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (entry.location?.isNotEmpty ?? false)
-                                    Text(entry.location!),
-                                  Text(
-                                    entry.timestamp.toString().split('.')[0],
-                                    style: Theme.of(context).textTheme.bodySmall,
-                                  ),
-                                ],
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit),
-                                    onPressed: () => _editEntry(entry.id),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete),
-                                    onPressed: () => _deleteEntry(entry.id),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (entry.images.isNotEmpty)
-                              SizedBox(
-                                height: 100,
-                                child: ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: entry.images.length,
-                                  itemBuilder: (context, imageIndex) {
-                                    return Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Image.file(
-                                        File(entry.images[imageIndex]),
-                                        height: 100,
-                                        width: 100,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ),
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );
